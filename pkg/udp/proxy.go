@@ -34,6 +34,14 @@ func (p *Proxy) ServeUDP(conn *Conn) {
 	// maybe not needed, but just in case
 	defer connBackend.Close()
 
+	if p.proxyProtocol != nil && p.proxyProtocol.Version > 0 && p.proxyProtocol.Version < 3 {
+		header := proxyproto.HeaderProxyFromAddrs(byte(p.proxyProtocol.Version), conn.RemoteAddr(), conn.LocalAddr())
+		if _, err := header.WriteTo(connBackend); err != nil {
+			log.Error().Err(err).Msg("Error while writing UDP proxy protocol headers to backend connection")
+			return
+		}
+	}
+
 	errChan := make(chan error)
 	go connCopy(conn, connBackend, errChan)
 	go connCopy(connBackend, conn, errChan)
